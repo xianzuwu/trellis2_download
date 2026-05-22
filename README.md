@@ -1,8 +1,10 @@
 # TRELLIS.2 Dataset Downloader
 
-Standalone, resumable downloader for the datasets listed in the TRELLIS.2 data toolkit.
+Standalone downloader for TRELLIS.2 datasets with resume/retry support.
 
-## Datasets
+This repository contains only the dataset download code, not the downloaded data.
+
+## What Can Be Downloaded
 
 Profiles:
 
@@ -12,63 +14,205 @@ test  = SketchfabPicked, Toys4k
 all   = ObjaverseXL, ABO, HSSD, TexVerse, SketchfabPicked, Toys4k
 ```
 
-Dataset notes:
+Dataset status:
 
-- `HSSD` requires Hugging Face access to `hssd/hssd-models`.
-- `Toys4k` requires manually placing `toys4k_blend_files.zip` at `<DATA_ROOT>/Toys4k/raw/toys4k_blend_files.zip`.
-- `SketchfabPicked` is listed as a TRELLIS.2 test set, but the official picked-list manifest is not published in the TRELLIS.2 repo. Use `TRELLIS2_SKETCHFAB_PICKED_MANIFEST=/path/to/manifest.csv`, or place local assets under `<DATA_ROOT>/SketchfabPicked/raw`.
-- Do not commit Hugging Face tokens, logs, or downloaded data.
+| Dataset | Status |
+| --- | --- |
+| `ObjaverseXL` | Direct download. Sources: `sketchfab`, `github`. |
+| `ABO` | Direct public download. |
+| `HSSD` | Requires Hugging Face access to `hssd/hssd-models`. |
+| `TexVerse` | Direct Hugging Face dataset download. |
+| `Toys4k` | Requires manual `toys4k_blend_files.zip`, then this repo extracts/registers it. |
+| `SketchfabPicked` | Requires a manifest or pre-existing local assets; TRELLIS.2 has not published the official picked manifest. |
 
-## Install
+For a first full training-data download, use `TRELLIS2_DATASETS="train"`.
+Use `TRELLIS2_DATASETS="all"` only after preparing the Toys4k archive and a SketchfabPicked manifest/local files.
 
-Use an environment with Python 3.10+.
+## 1. Clone
 
 ```bash
+git clone https://github.com/xianzuwu/trellis2_download.git
+cd trellis2_download
+```
+
+## 2. Create Conda Environment
+
+```bash
+conda create -n trellis2_download python=3.10 -y
+conda activate trellis2_download
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-`ObjaverseXL` requires the `objaverse` package. `HSSD` and `TexVerse` use `huggingface_hub`.
+Optional but recommended for faster Hugging Face transfers:
 
-## Configure
+```bash
+export HF_HUB_ENABLE_HF_TRANSFER=1
+```
+
+## 3. Configure Download
+
+Create a local env file:
 
 ```bash
 cp scripts/trellis2_download.env.example scripts/trellis2_download.env
-$EDITOR scripts/trellis2_download.env
 ```
 
-For HSSD, either export a Hugging Face token or set `HF_TOKEN` in the untracked env file:
+Edit it:
 
 ```bash
-export HF_TOKEN=...
+nano scripts/trellis2_download.env
 ```
 
-The token must have access to `hssd/hssd-models`.
+Minimal training-data config:
 
-## Run In tmux
+```bash
+TRELLIS2_DATA_ROOT="/path/to/trellis2_datasets"
+TRELLIS2_DATASETS="train"
+TRELLIS2_OBJAVERSEXL_SOURCES="sketchfab,github"
+TRELLIS2_TEXVERSE_RESOLUTION="2k"
+TRELLIS2_RETRIES="999"
+TRELLIS2_SLEEP_SECONDS="10"
+HF_TOKEN="your_huggingface_token_here"
+TRELLIS2_HF_LOGIN="1"
+```
+
+Full `all` config:
+
+```bash
+TRELLIS2_DATA_ROOT="/path/to/trellis2_datasets"
+TRELLIS2_DATASETS="all"
+TRELLIS2_OBJAVERSEXL_SOURCES="sketchfab,github"
+TRELLIS2_TEXVERSE_RESOLUTION="2k"
+TRELLIS2_SKETCHFAB_PICKED_MANIFEST="/path/to/sketchfab_picked_manifest.csv"
+HF_TOKEN="your_huggingface_token_here"
+TRELLIS2_HF_LOGIN="1"
+TRELLIS2_RETRIES="999"
+TRELLIS2_SLEEP_SECONDS="10"
+```
+
+Do not commit `scripts/trellis2_download.env`. It may contain a Hugging Face token.
+
+## 4. Hugging Face Access
+
+`HSSD` requires access to:
+
+```text
+https://huggingface.co/datasets/hssd/hssd-models
+```
+
+Use a token with that access. Set it in the shell:
+
+```bash
+export HF_TOKEN="your_huggingface_token_here"
+```
+
+or put it in the untracked local env file:
+
+```bash
+HF_TOKEN="your_huggingface_token_here"
+```
+
+Do not put real tokens in GitHub, READMEs, job logs, or shared scripts.
+
+## 5. Prepare Manual Test Assets
+
+For `Toys4k`, manually download `toys4k_blend_files.zip` and place it at:
+
+```text
+<TRELLIS2_DATA_ROOT>/Toys4k/raw/toys4k_blend_files.zip
+```
+
+For `SketchfabPicked`, provide one of:
+
+```bash
+TRELLIS2_SKETCHFAB_PICKED_MANIFEST="/path/to/sketchfab_picked_manifest.csv"
+```
+
+or local mesh files under:
+
+```text
+<TRELLIS2_DATA_ROOT>/SketchfabPicked/raw/
+```
+
+Manifest columns supported by `SketchfabPicked`:
+
+```text
+file_identifier
+sha256
+local_path
+source_path
+```
+
+## 6. Dry Run
+
+Before starting a large cluster job:
+
+```bash
+TRELLIS2_DRY_RUN=1 bash scripts/download_trellis2_datasets.sh scripts/trellis2_download.env
+```
+
+This prints the resolved command and exits without downloading.
+
+## 7. Run In tmux
 
 ```bash
 tmux new -s trellis2_download
+conda activate trellis2_download
 bash scripts/download_trellis2_datasets.sh scripts/trellis2_download.env
 ```
 
-Detach with `Ctrl-b d`, reattach with:
+Detach:
+
+```text
+Ctrl-b d
+```
+
+Reattach:
 
 ```bash
 tmux attach -t trellis2_download
 ```
 
-## Run With Slurm
+## 8. Run With Slurm
 
-Edit the module/conda block in `scripts/slurm_download_trellis2_datasets.sbatch`, then:
+Edit the module/conda block in:
+
+```text
+scripts/slurm_download_trellis2_datasets.sbatch
+```
+
+Then submit:
 
 ```bash
 sbatch scripts/slurm_download_trellis2_datasets.sbatch scripts/trellis2_download.env
 ```
 
-## Dry Run
+## 9. Direct Python Commands
+
+Download training datasets:
 
 ```bash
-TRELLIS2_DRY_RUN=1 bash scripts/download_trellis2_datasets.sh scripts/trellis2_download.env
+python download_trellis2_datasets.py \
+  --root /path/to/trellis2_datasets \
+  --datasets train \
+  --objaversexl-sources sketchfab,github \
+  --texverse-resolution 2k \
+  --retries 999 \
+  --sleep-seconds 10
+```
+
+Attempt all datasets:
+
+```bash
+python download_trellis2_datasets.py \
+  --root /path/to/trellis2_datasets \
+  --datasets all \
+  --objaversexl-sources sketchfab,github \
+  --texverse-resolution 2k \
+  --sketchfab-picked-manifest /path/to/sketchfab_picked_manifest.csv \
+  --retries 999 \
+  --sleep-seconds 10
 ```
 
 ## Resume Behavior
