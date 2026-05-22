@@ -21,6 +21,9 @@ fi
 : "${TRELLIS2_SLEEP_SECONDS:=10}"
 : "${TRELLIS2_HF_LOGIN:=1}"
 : "${TRELLIS2_DRY_RUN:=0}"
+: "${TRELLIS2_DOWNLOAD_TOYS4K_ZIP:=1}"
+: "${TRELLIS2_TOYS4K_HF_REPO:=seanzzzzz/TRELLIS-500K}"
+: "${TRELLIS2_TOYS4K_HF_FALLBACK_REPO:=lihong-cs/3dgeneration_baseline}"
 
 mkdir -p "${TRELLIS2_DATA_ROOT}" "${TRELLIS2_REPO_ROOT}/logs"
 
@@ -31,6 +34,12 @@ from huggingface_hub import login
 
 login(token=os.environ["HF_TOKEN"], add_to_git_credential=False)
 PY
+fi
+
+selection=",${TRELLIS2_DATASETS},"
+needs_toys4k=0
+if [[ "${selection}" == *",all,"* || "${selection}" == *",test,"* || "${selection}" == *",Toys4k,"* ]]; then
+    needs_toys4k=1
 fi
 
 cmd=(
@@ -64,11 +73,30 @@ printf 'Data root:  %s\n' "${TRELLIS2_DATA_ROOT}"
 printf 'Datasets:   %s\n' "${TRELLIS2_DATASETS}"
 printf 'Log file:   %s\n' "${log_file}"
 
+toys4k_zip="${TRELLIS2_DATA_ROOT}/Toys4k/raw/toys4k_blend_files.zip"
 if [[ "${TRELLIS2_DRY_RUN}" == "1" ]]; then
+    if [[ "${TRELLIS2_DOWNLOAD_TOYS4K_ZIP}" == "1" && "${needs_toys4k}" == "1" && ! -f "${toys4k_zip}" ]]; then
+        printf 'Would download Toys4k archive to %s\n' "${toys4k_zip}"
+        printf 'Primary Toys4k mirror: %s\n' "${TRELLIS2_TOYS4K_HF_REPO}"
+        printf 'Fallback Toys4k mirror: %s\n' "${TRELLIS2_TOYS4K_HF_FALLBACK_REPO}"
+    fi
     printf 'Command:'
     printf ' %q' "${cmd[@]}"
     printf '\n'
     exit 0
+fi
+
+if [[ "${TRELLIS2_DOWNLOAD_TOYS4K_ZIP}" == "1" && "${needs_toys4k}" == "1" && ! -f "${toys4k_zip}" ]]; then
+    mkdir -p "$(dirname "${toys4k_zip}")"
+    printf 'Toys4k archive missing, downloading to %s\n' "${toys4k_zip}"
+    if ! huggingface-cli download "${TRELLIS2_TOYS4K_HF_REPO}" toys4k_blend_files.zip \
+        --repo-type dataset \
+        --local-dir "$(dirname "${toys4k_zip}")"; then
+        printf 'Primary Toys4k mirror failed, trying fallback: %s\n' "${TRELLIS2_TOYS4K_HF_FALLBACK_REPO}"
+        huggingface-cli download "${TRELLIS2_TOYS4K_HF_FALLBACK_REPO}" toys4k_blend_files.zip \
+            --repo-type dataset \
+            --local-dir "$(dirname "${toys4k_zip}")"
+    fi
 fi
 
 "${cmd[@]}" 2>&1 | tee -a "${log_file}"

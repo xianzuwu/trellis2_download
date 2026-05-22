@@ -39,6 +39,18 @@ def parse_csv_list(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def expand_dataset_selection(value: str) -> list[str]:
+    datasets = []
+    seen = set()
+    for item in parse_csv_list(value):
+        expanded = DATASET_PROFILES.get(item, [item])
+        for dataset in expanded:
+            if dataset not in seen:
+                datasets.append(dataset)
+                seen.add(dataset)
+    return datasets
+
+
 def read_csv_if_exists(path: Path) -> pd.DataFrame | None:
     if path.exists():
         return pd.read_csv(path)
@@ -282,7 +294,7 @@ def run_job(job: DatasetJob, retries: int, sleep_seconds: int):
 def build_jobs(args):
     jobs = []
     base_root = Path(args.root).resolve()
-    requested = DATASET_PROFILES.get(args.datasets, parse_csv_list(args.datasets))
+    requested = expand_dataset_selection(args.datasets)
 
     for dataset in requested:
         if dataset == "ObjaverseXL":

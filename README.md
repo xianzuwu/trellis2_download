@@ -26,6 +26,7 @@ Dataset status:
 | `SketchfabPicked` | Requires a manifest or pre-existing local assets; TRELLIS.2 has not published the official picked manifest. |
 
 For a first full training-data download, use `TRELLIS2_DATASETS="train"`.
+For training data plus Toys4k evaluation assets, use `TRELLIS2_DATASETS="train,Toys4k"`.
 Use `TRELLIS2_DATASETS="all"` only after preparing the Toys4k archive and a SketchfabPicked manifest/local files.
 
 ## 1. Clone
@@ -64,23 +65,32 @@ Edit it:
 nano scripts/trellis2_download.env
 ```
 
+Example cluster path:
+
+```bash
+mkdir -p /export/data/xianfeng/trellis2_datasets
+```
+
 Minimal training-data config:
 
 ```bash
-TRELLIS2_DATA_ROOT="/path/to/trellis2_datasets"
-TRELLIS2_DATASETS="train"
+TRELLIS2_DATA_ROOT="/export/data/xianfeng/trellis2_datasets"
+TRELLIS2_DATASETS="train,Toys4k"
 TRELLIS2_OBJAVERSEXL_SOURCES="sketchfab,github"
 TRELLIS2_TEXVERSE_RESOLUTION="2k"
 TRELLIS2_RETRIES="999"
 TRELLIS2_SLEEP_SECONDS="10"
 HF_TOKEN="your_huggingface_token_here"
 TRELLIS2_HF_LOGIN="1"
+TRELLIS2_DOWNLOAD_TOYS4K_ZIP="1"
+TRELLIS2_TOYS4K_HF_REPO="seanzzzzz/TRELLIS-500K"
+TRELLIS2_TOYS4K_HF_FALLBACK_REPO="lihong-cs/3dgeneration_baseline"
 ```
 
 Full `all` config:
 
 ```bash
-TRELLIS2_DATA_ROOT="/path/to/trellis2_datasets"
+TRELLIS2_DATA_ROOT="/export/data/xianfeng/trellis2_datasets"
 TRELLIS2_DATASETS="all"
 TRELLIS2_OBJAVERSEXL_SOURCES="sketchfab,github"
 TRELLIS2_TEXVERSE_RESOLUTION="2k"
@@ -135,7 +145,15 @@ Official source: the Toys4K project page asks users to fill out its download for
 https://github.com/rehg-lab/lowshot-shapebias/tree/main/toys4k
 ```
 
-There are also Hugging Face mirrors that contain a file with the expected name, for example:
+The wrapper script can download this file automatically when `Toys4k` is selected:
+
+```bash
+TRELLIS2_DOWNLOAD_TOYS4K_ZIP="1"
+TRELLIS2_TOYS4K_HF_REPO="seanzzzzz/TRELLIS-500K"
+TRELLIS2_TOYS4K_HF_FALLBACK_REPO="lihong-cs/3dgeneration_baseline"
+```
+
+Equivalent manual command:
 
 ```bash
 huggingface-cli download seanzzzzz/TRELLIS-500K toys4k_blend_files.zip \
