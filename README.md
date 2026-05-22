@@ -117,11 +117,33 @@ Do not put real tokens in GitHub, READMEs, job logs, or shared scripts.
 
 ## 5. Prepare Manual Test Assets
 
-For `Toys4k`, manually download `toys4k_blend_files.zip` and place it at:
+For `Toys4k`, this downloader expects the Blend-file archive:
 
 ```text
 <TRELLIS2_DATA_ROOT>/Toys4k/raw/toys4k_blend_files.zip
 ```
+
+The zip must contain files under:
+
+```text
+toys4k_blend_files/<asset_name>.blend
+```
+
+Official source: the Toys4K project page asks users to fill out its download form and provides `toys4k_blend_files.zip` together with other archives such as obj files, point clouds, and sample renders:
+
+```text
+https://github.com/rehg-lab/lowshot-shapebias/tree/main/toys4k
+```
+
+There are also Hugging Face mirrors that contain a file with the expected name, for example:
+
+```bash
+huggingface-cli download seanzzzzz/TRELLIS-500K toys4k_blend_files.zip \
+  --repo-type dataset \
+  --local-dir "${TRELLIS2_DATA_ROOT}/Toys4k/raw"
+```
+
+Use the official Toys4K source if licensing/provenance matters for your cluster.
 
 For `SketchfabPicked`, provide one of:
 
@@ -143,6 +165,8 @@ sha256
 local_path
 source_path
 ```
+
+As of this repository revision, we have not found an official TRELLIS.2 `SketchfabPicked` manifest in the Microsoft TRELLIS.2 repository or issue thread. Without that manifest, `SketchfabPicked` can only be reproduced from a user-provided picked list or local assets.
 
 ## 6. Dry Run
 
