@@ -5,12 +5,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TRELLIS2_REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 export TRELLIS2_REPO_ROOT
 
+ENV_TRELLIS2_DRY_RUN="${TRELLIS2_DRY_RUN:-}"
 ENV_FILE="${1:-${TRELLIS2_DOWNLOAD_ENV:-${SCRIPT_DIR}/trellis2_download.env}}"
 if [[ -f "${ENV_FILE}" ]]; then
     set -a
     # shellcheck disable=SC1090
     source "${ENV_FILE}"
     set +a
+fi
+if [[ -n "${ENV_TRELLIS2_DRY_RUN}" ]]; then
+    TRELLIS2_DRY_RUN="${ENV_TRELLIS2_DRY_RUN}"
 fi
 
 : "${TRELLIS2_DATA_ROOT:=${TRELLIS2_REPO_ROOT}/datasets}"
@@ -26,15 +30,6 @@ fi
 : "${TRELLIS2_TOYS4K_HF_FALLBACK_REPO:=lihong-cs/3dgeneration_baseline}"
 
 mkdir -p "${TRELLIS2_DATA_ROOT}" "${TRELLIS2_REPO_ROOT}/logs"
-
-if [[ "${TRELLIS2_HF_LOGIN}" == "1" && -n "${HF_TOKEN:-}" ]]; then
-    python - <<'PY'
-import os
-from huggingface_hub import login
-
-login(token=os.environ["HF_TOKEN"], add_to_git_credential=False)
-PY
-fi
 
 selection=",${TRELLIS2_DATASETS},"
 needs_toys4k=0
@@ -84,6 +79,15 @@ if [[ "${TRELLIS2_DRY_RUN}" == "1" ]]; then
     printf ' %q' "${cmd[@]}"
     printf '\n'
     exit 0
+fi
+
+if [[ "${TRELLIS2_HF_LOGIN}" == "1" && -n "${HF_TOKEN:-}" ]]; then
+    python - <<'PY'
+import os
+from huggingface_hub import login
+
+login(token=os.environ["HF_TOKEN"], add_to_git_credential=False)
+PY
 fi
 
 if [[ "${TRELLIS2_DOWNLOAD_TOYS4K_ZIP}" == "1" && "${needs_toys4k}" == "1" && ! -f "${toys4k_zip}" ]]; then
