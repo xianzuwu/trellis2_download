@@ -93,11 +93,20 @@ fi
 if [[ "${TRELLIS2_DOWNLOAD_TOYS4K_ZIP}" == "1" && "${needs_toys4k}" == "1" && ! -f "${toys4k_zip}" ]]; then
     mkdir -p "$(dirname "${toys4k_zip}")"
     printf 'Toys4k archive missing, downloading to %s\n' "${toys4k_zip}"
-    if ! huggingface-cli download "${TRELLIS2_TOYS4K_HF_REPO}" toys4k_blend_files.zip \
+    if command -v hf >/dev/null 2>&1; then
+        hf_download=(hf download)
+    elif command -v huggingface-cli >/dev/null 2>&1; then
+        hf_download=(huggingface-cli download)
+    else
+        printf 'Neither hf nor huggingface-cli was found in PATH.\n' >&2
+        exit 1
+    fi
+
+    if ! "${hf_download[@]}" "${TRELLIS2_TOYS4K_HF_REPO}" toys4k_blend_files.zip \
         --repo-type dataset \
         --local-dir "$(dirname "${toys4k_zip}")"; then
         printf 'Primary Toys4k mirror failed, trying fallback: %s\n' "${TRELLIS2_TOYS4K_HF_FALLBACK_REPO}"
-        huggingface-cli download "${TRELLIS2_TOYS4K_HF_FALLBACK_REPO}" toys4k_blend_files.zip \
+        "${hf_download[@]}" "${TRELLIS2_TOYS4K_HF_FALLBACK_REPO}" toys4k_blend_files.zip \
             --repo-type dataset \
             --local-dir "$(dirname "${toys4k_zip}")"
     fi

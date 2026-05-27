@@ -14,7 +14,8 @@ export TORCH_HOME="${PROJECTS_ROOT}/.cache/torch"
 export PIP_CACHE_DIR="${PROJECTS_ROOT}/.cache/pip"
 export GIT_CONFIG_GLOBAL="${PROJECTS_ROOT}/.gitconfig"
 export TMPDIR="${PROJECTS_ROOT}/tmp"
-export HF_HUB_ENABLE_HF_TRANSFER=1
+export HF_HUB_DISABLE_XET="${HF_HUB_DISABLE_XET:-1}"
+export HF_XET_HIGH_PERFORMANCE="${HF_XET_HIGH_PERFORMANCE:-0}"
 
 mkdir -p \
     "${XDG_CACHE_HOME}" \

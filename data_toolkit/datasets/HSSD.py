@@ -1,5 +1,5 @@
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import huggingface_hub
 import pandas as pd
@@ -16,8 +16,9 @@ def get_metadata(**kwargs):
     return pd.read_csv("hf://datasets/JeffreyXiang/TRELLIS-500K/HSSD.csv")
 
 
-def download(metadata, output_dir, **kwargs):
+def download(metadata, output_dir, max_workers=None, **kwargs):
     os.makedirs(os.path.join(output_dir, "raw"), exist_ok=True)
+    max_workers = max_workers or int(os.environ.get("TRELLIS2_HSSD_MAX_WORKERS", "8"))
 
     try:
         huggingface_hub.whoami()
@@ -38,7 +39,7 @@ def download(metadata, output_dir, **kwargs):
 
     downloaded = {}
     metadata = metadata.set_index("file_identifier")
-    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor, tqdm(total=len(metadata), desc="Downloading") as pbar:
+    with ThreadPoolExecutor(max_workers=max_workers) as executor, tqdm(total=len(metadata), desc="Downloading") as pbar:
         def worker(instance):
             try:
                 huggingface_hub.hf_hub_download(
@@ -48,21 +49,26 @@ def download(metadata, output_dir, **kwargs):
                     local_dir=os.path.join(output_dir, "raw"),
                 )
                 return get_file_hash(os.path.join(output_dir, "raw", instance))
-            except Exception as e:
+            except BaseException as e:
                 print(f"Error downloading for {instance}: {e}")
                 return None
             finally:
                 pbar.update()
 
-        sha256s = executor.map(worker, metadata.index)
-        executor.shutdown(wait=True)
+        futures = {executor.submit(worker, instance): instance for instance in metadata.index}
+        for future in as_completed(futures):
+            file_identifier = futures[future]
+            try:
+                sha256 = future.result()
+            except BaseException as e:
+                print(f"Error downloading for {file_identifier}: {e}")
+                continue
 
-    for file_identifier, sha256 in zip(metadata.index, sha256s):
-        if sha256 is None:
-            continue
-        if sha256 == metadata.loc[file_identifier, "sha256"]:
-            downloaded[sha256] = os.path.join("raw", file_identifier)
-        else:
-            print(f"Error downloading {file_identifier}: sha256s do not match")
+            if sha256 is None:
+                continue
+            if sha256 == metadata.loc[file_identifier, "sha256"]:
+                downloaded[sha256] = os.path.join("raw", file_identifier)
+            else:
+                print(f"Error downloading {file_identifier}: sha256s do not match")
 
     return pd.DataFrame(downloaded.items(), columns=["sha256", "local_path"])
